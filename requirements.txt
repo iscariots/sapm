@@ -1,0 +1,5 @@
+scratchattach
+requests
+aiohttp
+asyncio
+scratchcloud
