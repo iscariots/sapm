@@ -72,7 +72,7 @@ class SpamSession():
                     await client.close()
             asyncio.run(change_icon())
         
-    def rntas(original: str, length: int = 6) -> str:
+    def rntas(self, original: str, length: int = 6) -> str:
         random_str = ''.join(random.choices(string.digits, k=length))
         return f"{original} {random_str}"
 
