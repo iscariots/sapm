@@ -134,7 +134,7 @@ def rntas(original: str, length: int = 6) -> str:
 
 def spam():
     _targets = input("targets (id,type): ").split(" ")
-    message = input("message: ")
+    message = rntas(input("message: "))
     targets = [target.split(",") for target in _targets]
     session: SpamSession
     event = threading.Event()
