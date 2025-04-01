@@ -72,9 +72,13 @@ class SpamSession():
                     await client.close()
             asyncio.run(change_icon())
         
+    def rntas(original: str, length: int = 6) -> str:
+        random_str = ''.join(random.choices(string.digits, k=length))
+        return f"{original} {random_str}"
+
     def send_comment(self, target: scratchattach.Studio | scratchattach.User | scratchattach.Project, message: str):
         try:
-            target.post_comment(message)
+            target.post_comment(self.rntas(message))
         except:
             pass
 
@@ -128,13 +132,9 @@ class SpamSession():
     def clear_connections(self):
         self.connected_to.clear()
 
-def rntas(original: str, length: int = 6) -> str:
-    random_str = ''.join(random.choices(string.digits, k=length))
-    return f"{original} {random_str}"
-
 def spam():
     _targets = input("targets (id,type): ").split(" ")
-    message = rntas(input("message: "))
+    message = input("message: ")
     targets = [target.split(",") for target in _targets]
     session: SpamSession
     event = threading.Event()
