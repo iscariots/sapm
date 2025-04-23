@@ -119,12 +119,47 @@ class SpamSession():
     def report_in_connection(self):
         threading.Thread(target=self.report_comment, args=(self.connected_to[0].comments()[0],)).start()
 
+    def mass_invite_from_comments(self, id, target, type):
+        self.clear_connections()
+        target = self.connect(target,type)
+        id = self.connect(id, "studio")
+        for comment in target.comments():
+            id.invite_curator(self.connect(comment.author_name, "user"))
+
     def is_banned(self):
         if self.session.banned:
             return True
         else:
             return False
         
+    def share_from_id(self, project_id: str | int, name):
+        requests.put(f'https://api.scratch.mit.edu/proxy/projects/{project_id}/share', cookies=self._cookies, headers=self._headers)
+        requests.put(f'https://api.scratch.mit.edu/projects/{project_id}', headers=self._headers, json={"title": name})
+        
+    def threaded_remix(self, project_id: str, amount: int, name):
+        try:
+            json_data = {'targets': [{'isStage': True,'name': 'Stage','variables': {'`jEk@4|i[#Fk?(8x)AV.-my variable': ['my variable',0,],},'lists': {},'broadcasts': {},'blocks': {},'comments': {},'currentCostume': 0,'costumes': [{'name': 'backdrop1','dataFormat': 'svg','assetId': 'cd21514d0531fdffb22204e0ec5ed84a','md5ext': 'cd21514d0531fdffb22204e0ec5ed84a.svg','rotationCenterX': 240,'rotationCenterY': 180,},],'sounds': [],'volume': 100,'layerOrder': 0,'tempo': 60,'videoTransparency': 50,'videoState': 'on','textToSpeechLanguage': None,},],'monitors': [],'extensions': [],'meta': {'semver': '3.0.0','vm': '11.0.0','agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36',},}
+            params = {
+                'is_remix': '1',
+                'original_id': project_id,
+                'title': 'Scratch Project',
+            }
+            response = requests.post('https://projects.scratch.mit.edu/', params=params, cookies=self._cookies, headers=self._headers, json=json_data)
+            print(response.status_code)
+            if response.status_code == 200:
+                content_name = response.json()["content-name"]
+                if type(name) == str and len(name) <= -1 or type(name) == None:
+                    name = content_name
+                self.share_from_id(content_name, name)
+        except Exception as e:
+            print(e)
+
+    def remix(self, project_id: str, amount: int, name):
+        for i in range(1,amount+1):
+            threading.Thread(target=self.threaded_remix, args=(project_id, i, name)).start()
+            time.sleep(0.05)
+            print(f"{str(i)}/{str(amount)}")
+
     def connect(self, id: str, type: str):
         self.connected_to.append(self.connects.get(type)(id))
         return self.connected_to[len(self.connected_to)-1]
@@ -232,11 +267,32 @@ def email_spam():
             i.join()
         init()
 
+def mass_invite():
+    print("make sure atleast 1 account connected can invite ppl to the studio or wtv")
+    studio_id = input("studio id to invite to: ")
+    target = input("place to invite from: (id,type) ").split(",")
+
+    for session in sessions:
+        try:
+            threading.Thread(target=session.mass_invite_from_comments, args=(studio_id, target[0], target[1]))
+        except:
+            pass
+
+def mass_remix():
+    studio_id = input("project id to remix: ")
+    limit = input("how many times? (per account) ")
+    optional_name = input("name? (optional) ")
+    for session in sessions:
+        try:
+            threading.Thread(target=session.remix, args=(str(studio_id),int(limit), optional_name)).start()
+        except:
+            pass
+
 
 def bypass():
     import pyperclip
     inp = input("message to bypass: ")
-    chars = ["⁫","⁫","⁭","⁬","⁦",]
+    chars = ["󠇉","󠆪","󠆔","󠅡","󠅦",]
     pyperclip.copy("".join(f"{i}{random.choice(chars) * 4}" for i in inp))
     init()
 
@@ -297,6 +353,8 @@ functions = {
     "3": nuke_studio,
     "4": delete_comment,
     "5": email_spam,
+    "6": mass_invite,
+    "7": mass_remix,
     "bypass": bypass,
     "pfp": set_pfps,
     "list": list_sessions,
@@ -317,6 +375,8 @@ main features:
 3: nuke studio's comments
 4: delete a comment
 5: email spam (LEAKS UR IP, USE VPN!!!) (set up selenium first cuz im stupid)
+6: mass-invite
+7: mass-remix
 
 message-related features:
 bypass: bypasses a message for u (pip install pyperclip first)
@@ -344,4 +404,4 @@ if __name__ == "__main__":
 
 
 # credits:
-# aurafarmed on discord - https://github.com/iscariots/
+# iscariots on discord - https://github.com/iscariots/
