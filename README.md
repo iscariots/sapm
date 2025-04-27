@@ -1,1 +1,4 @@
-put ur accounts in accounts.txt use start.bat idk install python ig
+EDUCATIONAL PURPOSES ONLY: Please do not use these scripts maliciously. This repo is intended to be used for educational & archival purposes only. I do not condone any malicious usage of these scripts
+
+usage:
+  put ur accounts in accounts.txt use start.bat idk install python ig
