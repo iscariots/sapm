@@ -6,7 +6,6 @@ import random
 import string
 import threading
 import requests
-import aiohttp
 
 accounts = []
 sessions = []
@@ -14,7 +13,7 @@ global_threads = []
 
 password = "example" # use this password if account doesnt have one
 account_cooldown = 1.5 # time between logging into accounts (not even needed tbh)
-_pfp = "example.jpg"
+_pfp = open("example.jpg","rb")
 
 with open("accounts.txt", "r") as _accounts:
     for account in _accounts:
@@ -30,6 +29,7 @@ class SpamSession():
         self.cooldown = 33
         try:
             self.session = scratchattach.login(username, password)
+            print(f"logged in to {username}")
         except Exception as e:
             self.session = scratchattach.Session()
             self.session.banned = True
@@ -47,30 +47,9 @@ class SpamSession():
         self.connected_to = []
         self.threads = []
 
-    def set_pfp(self, username, session, pfp):
-            from scratchcloud import CloudClient
-            client = CloudClient(username=username, project_id='686861597')
-            async def post_change_icon(client: CloudClient, icon):
-                PATH = f'https://scratch.mit.edu/site-api/users/all/{client.username}/'
-                with open(icon, 'rb') as img:
-                    form = aiohttp.FormData()
-                    form.add_field('thumbnail', img)
-                    async with client.http_session.post(url=PATH, data=form) as response:
-                        rdata = await response.json()
-                        return rdata['thumbnail_url'].strip('//')
-            import asyncio
-            async def change_icon():
-                try:
-                    client = CloudClient(username=username, project_id=None)
-                    await client.login(password)
-                    await post_change_icon(client, pfp)
-                    await client.close()
-                except Exception as e:
-                    client = CloudClient(username=username, project_id=None)
-                    await client.login(password)
-                    await post_change_icon(client, pfp)
-                    await client.close()
-            asyncio.run(change_icon())
+    def set_pfp(self, pfp):
+        status = requests.post(url=f"https://scratch.mit.edu/site-api/users/all/{self.username}/", headers=self._headers, cookies=self._cookies, files={"file": _pfp})
+        print(status.status_code)
         
     def rntas(self, original: str, length: int = 6) -> str:
         random_str = ''.join(random.choices(string.digits, k=length))
@@ -84,11 +63,17 @@ class SpamSession():
 
     def send_comment_to_connections(self, message: str):
         connect: scratchattach.Studio
+        random.shuffle(self.connected_to)
         for connect in self.connected_to:
             for i in range(50):
                 threading.Thread(target=self.send_comment,args=(connect, message)).start()
 
     def spam_comment(self, message, event: threading.Event):
+        while event.is_set():
+            self.send_comment_to_connections(message)
+            time.sleep(self.cooldown)
+
+    def spam_comments(self, message, event: threading.Event):
         while event.is_set():
             self.send_comment_to_connections(message)
             time.sleep(self.cooldown)
@@ -117,7 +102,7 @@ class SpamSession():
         return connection.comment_by_id(id)
 
     def report_in_connection(self):
-        threading.Thread(target=self.report_comment, args=(self.connected_to[0].comments()[0],)).start()
+        threading.Thread(target=self.report_comment, args=(self.connected_to[random.randint(0, len(self.connected_to)-1)].comments()[0],)).start()
 
     def mass_invite_from_comments(self, id, target, type):
         self.clear_connections()
@@ -125,6 +110,10 @@ class SpamSession():
         id = self.connect(id, "studio")
         for comment in target.comments():
             id.invite_curator(self.connect(comment.author_name, "user"))
+
+    def set_bio(self, bio):
+        self.session: scratchattach.Session
+        self.session.connect_linked_user().set_wiwo(bio)
 
     def is_banned(self):
         if self.session.banned:
@@ -187,14 +176,40 @@ def spam():
         print("stopping")
         init()
 
+def message_spam():
+    _targets = input("targets (id,type): ").split(" ")
+    message = []
+    with open("messages.txt", "r") as file:
+        for line in file.read().splitlines():
+            message.append(line)
+    targets = [target.split(",") for target in _targets]
+    session: SpamSession
+    event = threading.Event()
+    event.set()
+    for target in targets:
+        for session in sessions:
+            session.connect(target[0], target[1])
+    print("ctrl+c to stop")
+    try:
+        for session in sessions:
+            threading.Thread(target=session.spam_comments, args=(random.choice(message), event)).start()
+            time.sleep(account_cooldown)
+    except KeyboardInterrupt:
+        event.clear()
+        print("stopping")
+        init()
+
 
 def mass_report():
     init()
 
 def nuke_studio():
-    target_id = input("target (id,type): ").split(",")
-    for session in sessions:
-        session.connect(target_id[0], target_id[1])
+    _targets = input("target (id,type): ").split(" ")
+    targets = [target.split(",") for target in _targets]
+
+    for target in targets:
+        for session in sessions:
+            session.connect(target[0], target[1])
     print("ctrl+c to stop")
     try:
         while True:
@@ -273,9 +288,10 @@ def bypass():
 
 
 def set_pfps():
-    print("make sure u edited pfp at the top of the script")
+    global _pfp
+    _pfp = open(input("pfp filename? "),"rb")
     for session in sessions:
-        threading.Thread(target=session.set_pfp, args=(session.username, session.session, _pfp)).start()
+        threading.Thread(target=session.set_pfp, args=(_pfp,)).start()
     init()
 
 def list_sessions():
@@ -322,6 +338,17 @@ def clear_sessions():
                 file.write(f"{account['username']},{account['password']}\n")
     init()
 
+def set_bios():
+    bio = input("bio: ")
+    threads = []
+    for session in sessions:
+        threading.Thread(target=session.set_bio, args=(bio,)).start()
+
+    for thread in threads:
+        thread.join()
+
+    init()
+
 functions = {
     "1": spam,
     "2": mass_report,
@@ -330,12 +357,14 @@ functions = {
     "5": email_spam,
     "6": mass_invite,
     "7": mass_remix,
+    "8": message_spam,
     "bypass": bypass,
     "pfp": set_pfps,
     "list": list_sessions,
     "update": update_sessions,
     "banned": banned_sessions,
     "clear": clear_sessions,
+    "bio": set_bios,
     "exit": exit,
 }
 
@@ -352,6 +381,7 @@ main features:
 5: email spam (LEAKS UR IP, USE VPN!!!)
 6: mass-invite
 7: mass-remix
+8: spam random from messages.txt
 
 message-related features:
 bypass: bypasses a message for u (pip install pyperclip first)
